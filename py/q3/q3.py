@@ -44,13 +44,16 @@ def cross_entropy_loss(y, y_hat):
     return -np.sum(y * np.log(y_hat))
 
 # Define learning rate
-lr = 0.1
+lr = 0.01
 
 # Train the model
 epochs = 20
 train_losses = []
 test_losses = []
+test_error = []
 for epoch in range(epochs):
+    num_correct_test = 0
+    num_total_test = 0
     train_loss = 0.0
     for images, labels in trainloader:
         batch_size = images.shape[0]
@@ -93,9 +96,15 @@ for epoch in range(epochs):
         z3 = np.dot(a2, W3.T)
         y_hat = softmax(z3)
         test_loss += cross_entropy_loss(y, y_hat)
+        predictions = np.argmax(y_hat, axis=1)
+        num_correct_test += np.sum(predictions == labels.numpy())
+        num_total_test += batch_size
     test_loss = test_loss / len(testloader)
     test_losses.append(test_loss)
     print(f"Epoch {epoch+1}/{epochs}: Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}")
+    err = (num_total_test - num_correct_test) / num_total_test
+    test_error.append(err)
+    print(f"Test error: {err:.4f}")
 
 
 plt.plot(train_losses, label='Train')
@@ -124,3 +133,9 @@ num_correct += np.sum(predictions == labels.numpy())
 num_total += batch_size
 accuracy = num_correct / num_total
 print(f'Test accuracy: {accuracy:.4f}')
+
+for ind, err in enumerate(test_error):
+    if ind == 0:
+        print(r'\hline'+'\nEpoch & Test Error (\%) \\\\'+r'\begin{center}'+'\n'+r'\begin{tabular}{|c|c|}')
+    print(r'\hline', '\n',ind+1, ' & ', str(err*100)+'% \\\\')
+print(r'\hline\end{tabular}\end{center}')

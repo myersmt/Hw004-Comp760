@@ -1,121 +1,131 @@
 import numpy as np
-import matplotlib.cm as cm
-import os
-import math
-import torch
-import torch.nn.functional as F
-from torch.utils.data import TensorDataset, DataLoader
-from torchvision.transforms import ToTensor
-import torchvision
-import matplotlib.pyplot as plt
-def init_params():
-    W1 = np.random.rand(300,784) 
-    W2 = np.random.rand(200, 300) 
-    W3 = np.random.rand(10, 200)
-    return W1, W2, W3
-def sigmoid (x):
-    z = 1/(1 + np.exp(-x))
-    return z 
-def softmax(x):
-    a = np.exp(x)/np.exp(x).sum()
-    return a
-def forward_prop(In, W1, W2, W3):
-    #print("shape of input : ",In.shape)
-    Y1 = W1.dot(In)
-    #print("shape of Y1 : ",Y1.shape)
-    Z1 = sigmoid(Y1)
-    Y2 = W2.dot(Z1)
-    Z2 = sigmoid(Y2)
-    #print("shape of Z2_T : ",Z2.T.shape)
-    Y3 = W3.dot(Z2)
-    Z3 = softmax(Y3)
-    #print("shape of Z3 : ",Z3.shape)
-    return Z1, Z2, Z3, Y1, Y2, Y3
-def softmax_deriv(y_pred, y_actual):
-    return y_pred - y_actual
-def sigmoid_deriv(x) :
-    return np.diag(x*(1-x))
-def one_hot(Y):
-    Y_hot = np.atleast_2d(np.zeros(10))
-    #print("shape of Y_hot : ",Y_hot.shape)
-    Y_hot[0][Y] = 1
-    return Y_hot.T
-def back_prop (Z1,Z2, Z3, In, Y,W2,W3):
-    dW3 = (Z3 - one_hot(Y)).dot(Z2.T)
-    Z2_deriv = sigmoid_deriv(Z2.squeeze())
-    A = np.matmul (Z2_deriv,W3.T)
-    B = np.matmul(A,(Z3-one_hot(Y)))
-    dW2 = np.matmul(B,Z1.T)
-    Z1_deriv = sigmoid_deriv(Z1.squeeze())
-    C = np.matmul (Z1_deriv, W2.T)
-    D = np.matmul ( C, B)
-    dW1 = np.matmul(D, In.T)
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+def softmax(z):
+    e = np.exp(z - np.max(z, axis = 1, keepdims=True))
+    return e / np.sum(e, axis=1, keepdims=True)
+
+def cross_entropy_loss(y_true, y_pred):
+    return -np.sum(y_true * np.log(y_pred))
+
+def forward(x, W1, W2, W3):
+    z1 = np.dot(W1, x)
+    h1 = sigmoid(z1)
+    z2 = np.dot(W2, h1)
+    h2 = sigmoid(z2)
+    z3 = np.dot(W3, h2)
+    y_pred = softmax(z3)
+    return y_pred, h1, h2
+
+def backward(X, y, y_hat, h1, h2, W1, W2, W3):
+    dz3 = y_hat - y
+    dW3 = np.matmul(dz3, h2.T)
+    dh2 = np.matmul(W3.T, dz3)
+    dz2 = dh2 * (h2 > 0)
+    dW2 = np.matmul(dz2, h1.T)
+    dh1 = np.matmul(W2.T, dz2)
+    dz1 = dh1 * (h1 > 0)
+    dW1 = np.matmul(dz1, X.T)
     return dW1, dW2, dW3
-def update_params(W1, W2, W3, dW1, dW2, dW3, alpha):
-    W1 = W1 - alpha * dW1  
-    W2 = W2 - alpha * dW2  
-    W3 = W3 - alpha * dW3    
-    return W1, W2, W3
-
-def get_predictions(Z3):
-    return np.argmax(Z3)
-
-def gradient_descent(X, Y, alpha, W1, W2, W3):
-    #W1, W2, W3 = init_params()
-    X = np.atleast_2d(X)
-    X = X.T
-    for i in range(3):
-        Z1,Z2,Z3,Y1,Y2,Y3 = forward_prop(X,W1, W2, W3)
-        dW1, dW2, dW3 = back_prop(Z1,Z2,Z3,X, Y,W2,W3)
-        W1, W2, W3 = update_params(W1, W2, W3, dW1, dW2, dW3, alpha)
-    
-    return W1, W2, W3, Z3
 
 
-mnist_data_train = torchvision.datasets.MNIST('.', train=True,download=True, transform=ToTensor())
-#train_data_loader = torch.utils.data.DataLoader(mnist_data_train, batch_size=1, shuffle=False)
-mnist_data_test = torchvision.datasets.MNIST('.', train=False,download=True, transform=ToTensor())
+def train(X_train, y_train, X_test, y_test, n_hidden, learning_rate, n_epochs):
+    n_input = X_train.shape[1]
+    n_output = y_train.shape[1]
 
-iterations = 10
-for k in [100, 500, 1000, 5000, 10000, 15000]:
+    # Initialize weights
+    W1 = np.random.randn(n_hidden, n_input) * np.sqrt(1 / n_input)
+    W2 = np.random.randn(n_hidden, n_hidden) * np.sqrt(1 / n_hidden)
+    W3 = np.random.randn(n_output, n_hidden) * np.sqrt(1 / n_hidden)
 
-  print("###### " + str(k) + " Images ######")
+    # Train the network
+    train_losses = []
+    test_losses = []
+    for epoch in range(n_epochs):
+        # Forward pass on training set
+        train_pred, h1, h2 = forward(X_train.T, W1, W2, W3)
+        train_loss = cross_entropy_loss(y_train.T, train_pred)
+        train_losses.append(train_loss)
 
-  #### BEGIN TRAINING ####
-  W1_train, W2_train, W3_train = init_params()
-  for j in range(iterations):
-      for i in range(k):
-          train_features, train_labels = mnist_data_train[i]
-          #print("labels unflattened : ",train_labels)
-          #print("features : ")
-          #print(train_features.shape)
-          #print(train_features)
-          train_features_flatten = torch.flatten(train_features[0].squeeze())
-          train_features_arr = train_features_flatten.numpy()
-          #train_labels_flatten = torch.flatten(train_labels[0].squeeze())
-          #train_labels_arr = train_labels.numpy()
-          #print("train labels array : ",train_labels_arr)
-          #plt.imshow(train_features[0].reshape(28,28), cmap=cm.binary)
-          W1_train,W2_train,W3_train,Z3_train = gradient_descent(train_features_arr,train_labels,0.01, W1_train, W2_train, W3_train)
-          #predictions = get_predictions(Z3)
-      #loss = - np.matmul(one_hot(train_labels).T, np.log(Z3))
-      #print("LOSS in IMG " + str(i) + " in iteration " + str(j) + " : " + str(loss))
-      #print("true labels : {}".format(train_labels))
-      #print("predictions : {}\n".format(predictions))
-  
-  #### BEGIN TESTING ####
-  accurate_count = 0
-  for t in range(len(mnist_data_test)):
-    test_features, test_labels = mnist_data_test[t]
-    test_features_flatten = torch.flatten(test_features[0].squeeze())
-    test_features_arr = test_features_flatten.numpy()
-    
-    Z1_test,Z2_test,Z3_test,Y1_test,Y2_test,Y3_test = forward_prop(test_features_arr, W1_train, W2_train, W3_train)
-    Y_pred = get_predictions(Z3_test)
-    if (Y_pred == test_labels):
-      accurate_count = accurate_count + 1
-  
-  print("Accurate count value : " + str(accurate_count))
-  accuracy = accurate_count/10000
+        # Backward pass
+        dW1, dW2, dW3 = backward(X_train.T, y_train.T, train_pred, h1, h2, W1, W2, W3)
 
-  print("Accuracy for " + str(k) + " Images : " + str(accuracy))
+        # Update weights
+        W1 -= learning_rate * dW1
+        W2 -= learning_rate * dW2
+        W3 -= learning_rate * dW3
+
+        # Evaluate on test set
+        test_pred, _, _ = forward(X_test.T, W1, W2, W3)
+        test_loss = cross_entropy_loss(y_test.T, test_pred)
+        test_losses.append(test_loss)
+
+        # Print progress
+        if (epoch+1) % 10 == 0:
+            print(f"Epoch {epoch+1}/{n_epochs}: Train Loss = {train_loss:.4f}, Test Loss = {test_loss:.4f}")
+
+        # Early stopping if the test loss doesn't improve for 5 epochs
+        if epoch > 4:
+            if all(test_losses[-1] >= x for x in test_losses[-5:-1]):
+                print(f"Early stopping after epoch {epoch+1}")
+                break
+
+        # Shuffle training data for the next epoch
+        idx = np.random.permutation(len(X_train))
+        X_train = X_train[idx]
+        y_train = y_train[idx]
+
+        # Learning rate schedule
+        if epoch == n_epochs // 2:
+            learning_rate /= 10
+
+        # Save the model with the lowest test loss
+        if test_loss == min(test_losses):
+            np.savez("model.npz", W1=W1, W2=W2, W3=W3)
+
+    # Return the trained model
+    return {"W1": W1, "W2": W2, "W3": W3}
+
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.datasets import mnist
+
+# Load the MNIST dataset
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Preprocess the data
+X_train = X_train.reshape(-1, 28 * 28) / 255.0
+X_test = X_test.reshape(-1, 28 * 28) / 255.0
+y_train = keras.utils.to_categorical(y_train)
+y_test = keras.utils.to_categorical(y_test)
+
+# Split the training set into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=42)
+
+# Define the hyperparameters
+n_hidden = 100
+learning_rate = 0.1
+n_epochs = 50
+
+# Train the network
+model = train(X_train, y_train, X_val, y_val, n_hidden, learning_rate, n_epochs)
+
+# Evaluate the network on the test set
+test_pred, _, _ = forward(X_test.T, model["W1"], model["W2"], model["W3"])
+test_loss = cross_entropy_loss(y_test.T, test_pred)
+test_acc = np.mean(np.argmax(y_test, axis=1) == np.argmax(test_pred, axis=1))
+print(f"Test Loss = {test_loss:.4f}, Test Accuracy = {test_acc:.4f}")
+
+# Plot the learning curve
+import matplotlib.pyplot as plt
+plt.plot(range(1, len(model['train_losses']) + 1), model['train_losses'], label='Train Loss')
+plt.plot(range(1, len(model['test_losses']) + 1), model['test_losses'], label='Validation Loss')
+plt.title('Learning Curve')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()

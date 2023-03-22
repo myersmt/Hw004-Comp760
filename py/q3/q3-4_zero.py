@@ -72,15 +72,17 @@ train_loss_list = []
 test_loss_list = []
 train_accuracy_list = []
 test_accuracy_list = []
+test_error = []
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 for epoch in range(10):
     train_loss, train_accuracy = train(model, optimizer, train_loader)
     test_loss, test_accuracy = test(model, test_loader)
     train_loss_list.append(train_loss)
     test_loss_list.append(test_loss)
+    test_error.append(1-test_accuracy)
     train_accuracy_list.append(train_accuracy)
     test_accuracy_list.append(test_accuracy)
-    print('Epoch:', epoch+1, 'Train Loss:', train_loss, 'Train Accuracy:', train_accuracy, 'Test Loss:', test_loss, 'Test Accuracy:', test_accuracy)
+    print('Epoch:', epoch+1, 'Train Loss:', train_loss, 'Train Accuracy:', train_accuracy, 'Test Loss:', test_loss, 'Test Accuracy:', test_accuracy, 'Test Error:', 1-test_accuracy)
 
 # Plot
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
@@ -99,3 +101,9 @@ ax[1].legend()
 ax[1].set_title('Training and Testing Accuracy')
 
 plt.show()
+
+for ind, err in enumerate(test_error):
+    if ind == 0:
+        print(r'\hline'+'\nEpoch & Test Error (\%) \\\\'+r'\begin{center}'+'\n'+r'\begin{tabular}{|c|c|}')
+    print(r'\hline', '\n',ind+1, ' & ', str(err*100)+'% \\\\')
+print(r'\hline\end{tabular}\end{center}')

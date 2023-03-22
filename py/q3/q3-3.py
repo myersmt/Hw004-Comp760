@@ -5,6 +5,8 @@ from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
 
+epochs = 20
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -58,37 +60,46 @@ def test(model, test_loader):
             correct += pred.eq(y.view_as(pred)).sum().item()
     test_loss /= len(test_loader.dataset)
     accuracy = correct / len(test_loader.dataset)
-    return test_loss, accuracy
+    error = 1 - accuracy
+    return test_loss, accuracy, error
 
 model = Net()
 train_loss_list = []
 test_loss_list = []
 train_accuracy_list = []
 test_accuracy_list = []
+test_error = []
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-for epoch in range(10):
+for epoch in range(epochs):
     train_loss, train_accuracy = train(model, optimizer, train_loader)
-    test_loss, test_accuracy = test(model, test_loader)
+    test_loss, test_accuracy, err = test(model, test_loader)
     train_loss_list.append(train_loss)
     test_loss_list.append(test_loss)
+    test_error.append(err)
     train_accuracy_list.append(train_accuracy)
     test_accuracy_list.append(test_accuracy)
-    print('Epoch:', epoch+1, 'Train Loss:', train_loss, 'Train Accuracy:', train_accuracy, 'Test Loss:', test_loss, 'Test Accuracy:', test_accuracy)
+    print('Epoch:', epoch+1, 'Train Loss:', train_loss, 'Train Accuracy:', train_accuracy, 'Test Loss:', test_loss, 'Test Accuracy:', test_accuracy, 'Test Error:', err)
 
 # Plotting
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
-ax[0].plot(range(1, 11), train_loss_list, label='Train')
-ax[0].plot(range(1, 11), test_loss_list, label='Test')
+ax[0].plot(range(1, epochs+1), train_loss_list, label='Train')
+ax[0].plot(range(1, epochs+1), test_loss_list, label='Test')
 ax[0].set_xlabel('Epoch')
 ax[0].set_ylabel('Loss')
 ax[0].legend()
 ax[0].set_title('Training and Testing Loss')
 
-ax[1].plot(range(1, 11), train_accuracy_list, label='Train')
-ax[1].plot(range(1, 11), test_accuracy_list, label='Test')
+ax[1].plot(range(1, epochs+1), train_accuracy_list, label='Train')
+ax[1].plot(range(1, epochs+1), test_accuracy_list, label='Test')
 ax[1].set_xlabel('Epoch')
 ax[1].set_ylabel('Accuracy')
 ax[1].legend()
 ax[1].set_title('Training and Testing Accuracy')
 
 plt.show()
+
+for ind, err in enumerate(test_error):
+    if ind == 0:
+        print(r'\begin{center}\n\begin{tabular}{|c|c|}')
+    print(r'\hline', '\n',ind+1, ' & ', str(err*100)+'% \\\\')
+print(r'\end{tabular}\end{center}')
