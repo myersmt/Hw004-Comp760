@@ -4,7 +4,6 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
-# Define the network architecture
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -19,15 +18,15 @@ class Net(nn.Module):
         self.fc3.bias.data.fill_(0)
 
     def forward(self, x):
-        x = x.view(-1, 784) # flatten the input images
-        x = x.to(self.fc1.weight.dtype)  # explicitly cast x to the same dtype as the weights
+        x = x.view(-1, 784)
+        x = x.to(self.fc1.weight.dtype)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
         return torch.log_softmax(x, dim=1)
 
 
-# Prepare the dataset
+
 transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize((0.1307,), (0.3081,))])
 train_set = datasets.MNIST('data', train=True, download=True, transform=transform)
@@ -35,7 +34,7 @@ train_loader = torch.utils.data.DataLoader(train_set, batch_size=64, shuffle=Tru
 test_set = datasets.MNIST('data', train=False, download=True, transform=transform)
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=1000, shuffle=True)
 
-# Define the training function
+
 def train(model, optimizer, train_loader):
     model.train()
     train_loss = 0
@@ -52,7 +51,7 @@ def train(model, optimizer, train_loader):
     train_accuracy = correct / len(train_loader.dataset)
     return train_loss / len(train_loader.dataset), train_accuracy
 
-# Define the test function
+
 def test(model, test_loader):
     model.eval()
     test_loss = 0
@@ -67,7 +66,7 @@ def test(model, test_loader):
     accuracy = correct / len(test_loader.dataset)
     return test_loss, accuracy
 
-# Create the model, optimizer and train the network
+
 model = Net()
 train_loss_list = []
 test_loss_list = []
@@ -83,7 +82,7 @@ for epoch in range(10):
     test_accuracy_list.append(test_accuracy)
     print('Epoch:', epoch+1, 'Train Loss:', train_loss, 'Train Accuracy:', train_accuracy, 'Test Loss:', test_loss, 'Test Accuracy:', test_accuracy)
 
-# Plot the learning curve
+# Plot
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
 ax[0].plot(range(1, 11), train_loss_list, label='Train')
 ax[0].plot(range(1, 11), test_loss_list, label='Test')
